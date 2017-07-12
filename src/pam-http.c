@@ -19,7 +19,7 @@
 #define PAM_CONST const
 #endif
 
-#define DEBUG
+//#define DEBUG
 
 /* expected hook */
 PAM_EXTERN int pam_sm_setcred( pam_handle_t *pamh, int flags, int argc, const char **argv ) {
@@ -54,6 +54,7 @@ static const char* getArgStr(const char* pName, int argc, const char** argv) {
     return 0;
 }
 
+#ifdef DEBUG
 static char* curl_error_to_string(int err) {
     switch (err) {
         case CURLE_OK:
@@ -239,6 +240,7 @@ static char* curl_error_to_string(int err) {
             return "Unknown";
     }
 }
+#endif
 
 /*
  * Makes getting arguments easier. Accepted arguments are of the form: name=value
