@@ -21,4 +21,4 @@ Put something like this in one of the config files (change the URL to whatever y
 
 Sufficient basically means that if this authentication method succeeds, the user is given access.
 
-To test, run the test program with a single argument, the username. I have provided a sample HTTPS server (you'll need your own certificate) that will accept all usernames and passwords. This module does not check the validity of certificates, so a custom one will do.
+To test, put the config above in a file named /etc/pam.d/test, then install "pamtester" and run the following command "pamtester test root open_session"
