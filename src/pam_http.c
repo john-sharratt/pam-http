@@ -4,7 +4,9 @@
 #include <stdio.h>
 
 // pam stuff
+#include <security/pam_appl.h>
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
 // libcurl
 #include <curl/curl.h>
@@ -28,7 +30,7 @@ PAM_EXTERN int pam_sm_setcred( pam_handle_t *pamh, int flags, int argc, const ch
 
 PAM_EXTERN int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv) {
 #ifdef DEBUG
-    printf("pam-http::pam_sm_acct_mgmt - Acct mgmt\n");
+    printf("pam_http::pam_sm_acct_mgmt - Acct mgmt\n");
 #endif
     return PAM_SUCCESS;
 }
@@ -285,7 +287,7 @@ static char *replace_str(const char *str, const char *orig, const char *rep)
     if(!(p = strstr(str, orig)))  // Is 'orig' even in 'str'?
     {
 #ifdef DEBUG
-        printf("pam-http::replace_str() URL replace field - no match (search=%s)\n", orig);
+        printf("pam_http::replace_str() URL replace field - no match (search=%s)\n", orig);
 #endif
         return strdup(str);
     }
@@ -342,16 +344,16 @@ static char *request_pass(pam_handle_t *pamh, int echocode, PAM_CONST char *prom
 static int invokeHttpService(const char* pUrl, const char* pUsername, const char* pPassword, const char* pCode, int bBasicAuth) {
 #ifdef DEBUG
     if (pCode != NULL && strlen(pCode) > 0) {
-        printf("pam-http::invokeHttpService() url=%s, username=%s, password=[hidden], code=[hidden]\n", pUrl, pUsername);
+        printf("pam_http::invokeHttpService() url=%s, username=%s, password=[hidden], code=[hidden]\n", pUrl, pUsername);
     } else {
-        printf("pam-http::invokeHttpService() url=%s, username=%s, password=[hidden]\n", pUrl, pUsername);
+        printf("pam_http::invokeHttpService() url=%s, username=%s, password=[hidden]\n", pUrl, pUsername);
     }
 #endif
 
     CURL* pCurl = curl_easy_init();
     if (!pCurl) {
 #ifdef DEBUG
-        printf("pam-http::invokeHttpService() curl_easy_init - failed\n");
+        printf("pam_http::invokeHttpService() curl_easy_init - failed\n");
 #endif
         return PAM_SERVICE_ERR;
     }
@@ -370,7 +372,7 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
     pUrlMorphed1 = replace_str(pUrl, "{username}", pUsername != NULL ? pUsername : "");
     if (!pUrlMorphed1) {
 #ifdef DEBUG
-        printf("pam-http::invokeHttpService() failed to inject username into URL\n");
+        printf("pam_http::invokeHttpService() failed to inject username into URL\n");
 #endif
         return PAM_CRED_INSUFFICIENT;
     }
@@ -378,7 +380,7 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
     pUrlMorphed2 = replace_str(pUrlMorphed1, "{password}", pPassword != NULL ? pPassword : "");
     if (!pUrlMorphed2) {
 #ifdef DEBUG
-        printf("pam-http::invokeHttpService() failed to inject password into URL\n");
+        printf("pam_http::invokeHttpService() failed to inject password into URL\n");
 #endif
         free(pUrlMorphed1);
         return PAM_CRED_INSUFFICIENT;
@@ -387,7 +389,7 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
     pUrlMorphed3 = replace_str(pUrlMorphed2, "{code}", pCode != NULL ? pCode : "");
     if (!pUrlMorphed3) {
 #ifdef DEBUG
-        printf("pam-http::invokeHttpService() failed to inject code into URL\n");
+        printf("pam_http::invokeHttpService() failed to inject code into URL\n");
 #endif
         free(pUrlMorphed1);
         free(pUrlMorphed2);
@@ -435,7 +437,7 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
     long http_code = 0;
     curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &http_code);
 #ifdef DEBUG
-    printf("pam-http::invokeHttpService() http_code=%d\n", (int)http_code);
+    printf("pam_http::invokeHttpService() http_code=%d\n", (int)http_code);
 #endif
     
     // Cleanup
@@ -444,7 +446,7 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
     // Check for errors
     if (res != 0) {
 #ifdef DEBUG
-        printf("pam-http::invokeHttpService() error - %s\n", curl_error_to_string(res));
+        printf("pam_http::invokeHttpService() error - %s\n", curl_error_to_string(res));
 #endif
         return PAM_SERVICE_ERR;
     }
@@ -458,6 +460,7 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
 }
 
 /* expected hook, this is where custom stuff happens */
+__attribute__((visibility("default")))
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, const char **argv)
 {
     char*       pUsername = NULL;
@@ -471,35 +474,35 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
     int bNullOk = FALSE;
 
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() invoked\n");
+    printf("pam_http::pam_sm_authenticate() invoked\n");
 #endif
     
     pUrl = getArgStr("url", argc, argv);
     if (!pUrl) {
 #ifdef DEBUG
-        printf("pam-http::pam_sm_authenticate() url = '%s'\n", pUrl);
+        printf("pam_http::pam_sm_authenticate() url = '%s'\n", pUrl);
 #endif
         return PAM_AUTH_ERR;
     }
 
     bBasicAuth = getArgBoolean("basicauth", argc, argv);
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() basicauth=%d\n", bBasicAuth);
+    printf("pam_http::pam_sm_authenticate() basicauth=%d\n", bBasicAuth);
 #endif
 
     bRequestCode = getArgBoolean("requestcode", argc, argv);
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() requestcode=%d\n", bRequestCode);
+    printf("pam_http::pam_sm_authenticate() requestcode=%d\n", bRequestCode);
 #endif
     
     bRequestUsername = getArgBoolean("requestusername", argc, argv);
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() requestusername=%d\n", bRequestCode);
+    printf("pam_http::pam_sm_authenticate() requestusername=%d\n", bRequestCode);
 #endif
 
     bNullOk = getArgBoolean("nullok", argc, argv);
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() nullok=%d\n", bNullOk);
+    printf("pam_http::pam_sm_authenticate() nullok=%d\n", bNullOk);
 #endif
     
     int ret;
@@ -511,7 +514,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
         ret = pam_get_user(pamh, &cpUsername, NULL);
         if (ret != PAM_SUCCESS) {
 #ifdef DEBUG
-            printf("pam-http::pam_sm_authenticate() failed to get username [ret=%d]\n", ret);
+            printf("pam_http::pam_sm_authenticate() failed to get username [ret=%d]\n", ret);
 #endif
             return ret;
         }
@@ -519,36 +522,36 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
     }
     if (!pUsername) {
 #ifdef DEBUG
-        printf("pam-http::pam_sm_authenticate() failed to read username\n");
+        printf("pam_http::pam_sm_authenticate() failed to read username\n");
 #endif
         return PAM_CONV_ERR;
     }
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() username='%s'\n", pUsername);
+    printf("pam_http::pam_sm_authenticate() username='%s'\n", pUsername);
 #endif
 
     pPassword = request_pass(pamh, PAM_PROMPT_ECHO_OFF, "Tokera Password: ");
     if (!pPassword) {
 #ifdef DEBUG
-        printf("pam-http::pam_sm_authenticate() failed to read password\n");
+        printf("pam_http::pam_sm_authenticate() failed to read password\n");
 #endif
         free(pUsername);
         return PAM_CONV_ERR;
     }
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() password=[hidden]\n");
+    printf("pam_http::pam_sm_authenticate() password=[hidden]\n");
 #endif
 
     if (bRequestCode == TRUE) {
         pCode = request_pass(pamh, PAM_PROMPT_ECHO_OFF, "Verification code: ");
         if (!pCode && bNullOk == FALSE)  {
 #ifdef DEBUG
-            printf("pam-http::pam_sm_authenticate() failed to read vertification code\n");
+            printf("pam_http::pam_sm_authenticate() failed to read vertification code\n");
 #endif
             ret = PAM_CONV_ERR;
         }
 #ifdef DEBUG
-        printf("pam-http::pam_sm_authenticate() code=[hidden]\n");
+        printf("pam_http::pam_sm_authenticate() code=[hidden]\n");
 #endif
     }
 
@@ -573,7 +576,19 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
     }
 
 #ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() ret=%d\n", ret);
+    printf("pam_http::pam_sm_authenticate() ret=%d\n", ret);
 #endif
     return ret;
 }
+
+#ifdef PAM_STATIC
+struct pam_module _pam_listfile_modstruct = {
+    "pam_http",
+	pam_sm_authenticate,
+	pam_sm_setcred,
+	pam_sm_acct_mgmt,
+	NULL,
+	NULL,
+	NULL,
+};
+#endif
