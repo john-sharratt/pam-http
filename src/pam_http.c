@@ -4,8 +4,10 @@
 #include <stdio.h>
 
 // pam stuff
-#include <security/pam_appl.h>
+#define PAM_SM_AUTH
 #include <security/pam_modules.h>
+
+#include <security/pam_appl.h>
 #include <security/pam_ext.h>
 
 // libcurl
@@ -369,7 +371,11 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
     char *pUrlMorphed2 = NULL;
     char *pUrlMorphed3 = NULL;
 
-    pUrlMorphed1 = replace_str(pUrl, "{username}", pUsername != NULL ? pUsername : "");
+    if (pUsername != NULL) {
+        pUrlMorphed1 = replace_str(pUrl, "{username}", pUsername);
+    } else {
+        pUrlMorphed1 = strdup(pUrl);
+    }
     if (!pUrlMorphed1) {
 #ifdef DEBUG
         printf("pam_http::invokeHttpService() failed to inject username into URL\n");
@@ -377,7 +383,11 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
         return PAM_CRED_INSUFFICIENT;
     }
     
-    pUrlMorphed2 = replace_str(pUrlMorphed1, "{password}", pPassword != NULL ? pPassword : "");
+    if (pPassword != NULL) {
+        pUrlMorphed2 = replace_str(pUrlMorphed1, "{password}", pPassword);
+    } else {
+        pUrlMorphed2 = strdup(pUrlMorphed1);
+    }
     if (!pUrlMorphed2) {
 #ifdef DEBUG
         printf("pam_http::invokeHttpService() failed to inject password into URL\n");
@@ -386,7 +396,11 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
         return PAM_CRED_INSUFFICIENT;
     }
     
-    pUrlMorphed3 = replace_str(pUrlMorphed2, "{code}", pCode != NULL ? pCode : "");
+    if (pCode != NULL) {
+        pUrlMorphed3 = replace_str(pUrlMorphed2, "{code}", pCode);
+    } else {
+        pUrlMorphed3 = strdup(pUrlMorphed2);
+    }
     if (!pUrlMorphed3) {
 #ifdef DEBUG
         printf("pam_http::invokeHttpService() failed to inject code into URL\n");
@@ -505,19 +519,19 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
     printf("pam_http::pam_sm_authenticate() nullok=%d\n", bNullOk);
 #endif
     
-    int ret;
+    const char * cpUsername = NULL;
+    int ret = pam_get_user(pamh, &cpUsername, NULL);
+    if (ret != PAM_SUCCESS) {
+#ifdef DEBUG
+        printf("pam_http::pam_sm_authenticate() failed to get username [ret=%d]\n", ret);
+#endif
+        return ret;
+    }
+        
     if (bRequestUsername == TRUE)
     {
          pUsername = request_pass(pamh, PAM_PROMPT_ECHO_OFF, "Tokera Username: ");
     } else {
-        const char * cpUsername = NULL;
-        ret = pam_get_user(pamh, &cpUsername, NULL);
-        if (ret != PAM_SUCCESS) {
-#ifdef DEBUG
-            printf("pam_http::pam_sm_authenticate() failed to get username [ret=%d]\n", ret);
-#endif
-            return ret;
-        }
         pUsername = strdup(cpUsername);
     }
     if (!pUsername) {
