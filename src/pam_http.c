@@ -23,7 +23,7 @@
 #define PAM_CONST const
 #endif
 
-#define DEBUG
+//#define DEBUG
 
 /* expected hook */
 PAM_EXTERN int pam_sm_setcred( pam_handle_t *pamh, int flags, int argc, const char **argv ) {
