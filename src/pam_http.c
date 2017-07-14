@@ -530,7 +530,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
         
     if (bRequestUsername == TRUE)
     {
-         pUsername = request_pass(pamh, PAM_PROMPT_ECHO_OFF, "Tokera Username: ");
+        pUsername = request_pass(pamh, PAM_PROMPT_ECHO_ON, "Tokera Username: ");
     } else {
         pUsername = strdup(cpUsername);
     }
