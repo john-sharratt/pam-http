@@ -4,6 +4,7 @@
     <df root="." name="0">
       <df name="src">
         <in>pam_http.c</in>
+        <in>pamtester.c</in>
       </df>
     </df>
   </logicalFolder>
