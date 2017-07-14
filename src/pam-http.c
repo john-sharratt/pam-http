@@ -460,12 +460,13 @@ static int invokeHttpService(const char* pUrl, const char* pUsername, const char
 /* expected hook, this is where custom stuff happens */
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, const char **argv)
 {
-    const char* pUsername = NULL;
+    char*       pUsername = NULL;
     char*       pPassword = NULL;
     char*       pCode = NULL;
     const char* pUrl = NULL;
     
     int bBasicAuth = FALSE;
+    int bRequestUsername = FALSE;
     int bRequestCode = FALSE;
     int bNullOk = FALSE;
 
@@ -473,17 +474,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
     printf("pam-http::pam_sm_authenticate() invoked\n");
 #endif
     
-    int ret = pam_get_user(pamh, &pUsername, NULL);
-    if (ret != PAM_SUCCESS) {
-#ifdef DEBUG
-        printf("pam-http::pam_sm_authenticate() failed to get username [ret=%d]\n", ret);
-#endif
-        return ret;
-    }
-#ifdef DEBUG
-    printf("pam-http::pam_sm_authenticate() username='%s'\n", pUsername);
-#endif
-
     pUrl = getArgStr("url", argc, argv);
     if (!pUrl) {
 #ifdef DEBUG
@@ -501,17 +491,48 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
 #ifdef DEBUG
     printf("pam-http::pam_sm_authenticate() requestcode=%d\n", bRequestCode);
 #endif
+    
+    bRequestUsername = getArgBoolean("requestusername", argc, argv);
+#ifdef DEBUG
+    printf("pam-http::pam_sm_authenticate() requestusername=%d\n", bRequestCode);
+#endif
 
     bNullOk = getArgBoolean("nullok", argc, argv);
 #ifdef DEBUG
     printf("pam-http::pam_sm_authenticate() nullok=%d\n", bNullOk);
 #endif
     
-    pPassword = request_pass(pamh, PAM_PROMPT_ECHO_OFF, "Password: ");
+    int ret;
+    if (bRequestUsername == TRUE)
+    {
+         pUsername = request_pass(pamh, PAM_PROMPT_ECHO_OFF, "Tokera Username: ");
+    } else {
+        const char * cpUsername = NULL;
+        ret = pam_get_user(pamh, &cpUsername, NULL);
+        if (ret != PAM_SUCCESS) {
+#ifdef DEBUG
+            printf("pam-http::pam_sm_authenticate() failed to get username [ret=%d]\n", ret);
+#endif
+            return ret;
+        }
+        pUsername = strdup(cpUsername);
+    }
+    if (!pUsername) {
+#ifdef DEBUG
+        printf("pam-http::pam_sm_authenticate() failed to read username\n");
+#endif
+        return PAM_CONV_ERR;
+    }
+#ifdef DEBUG
+    printf("pam-http::pam_sm_authenticate() username='%s'\n", pUsername);
+#endif
+
+    pPassword = request_pass(pamh, PAM_PROMPT_ECHO_OFF, "Tokera Password: ");
     if (!pPassword) {
 #ifdef DEBUG
         printf("pam-http::pam_sm_authenticate() failed to read password\n");
 #endif
+        free(pUsername);
         return PAM_CONV_ERR;
     }
 #ifdef DEBUG
@@ -534,6 +555,12 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t* pamh, int flags, int argc, cons
     // Perform the authentication check
     ret = invokeHttpService(pUrl, pUsername, pPassword, pCode, bBasicAuth);
 
+    // Clean up some resources
+    if (pUsername != NULL) {
+        memset(pUsername, 0, strlen(pUsername));
+        free(pUsername);
+        pUsername = NULL;
+    }
     if (pPassword != NULL) {
         memset(pPassword, 0, strlen(pPassword));
         free(pPassword);
